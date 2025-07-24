@@ -8,9 +8,15 @@ client = OpenAI()
 system_prompt = {
     "role": "system",
     "content": (
-        "You are a productivity assistant that helps users manage tasks, "
-        "schedule their day, and offer productivity tips. Be concise, "
-        "friendly, and helpful."
+        "You are a helpful, friendly recipe assistant. Your job is to suggest "
+        "delicious recipes, explain how to make them, and provide nutritional "
+        "information. You can recommend recipes based on ingredients the user "
+        "has, their mood or cravings, or suggest random ideas based on what "
+        "you've discussed earlier. "
+        "Be creative, concise, and always prioritize taste, simplicity, and "
+        "health. If needed, suggest substitutes or tips for better cooking. "
+        "Avoid overly complex dishes unless requested. You can also suggest "
+        "beverages, desserts, or meal plans."
     ),
 }
 
@@ -21,22 +27,17 @@ exit_instructions = (
     "Note -> type 'exit' / 'quit' / 'stop' / 'close' to end the chat"
 )
 
-print(
-    (
-        f"{exit_instructions}\n\n"
-        "Productivity Assistant here to make your life easier :)"
-    )
-)
+print((f"{exit_instructions}\n\n" "Chef here to make your food tastier :)"))
 
 while True:
     user_input = input("\nYou: ").strip()
 
     if user_input.lower() in EXIT_COMMANDS:
-        print("\nGoodbye! Stay Positive, Stay Productive.")
+        print("\nGoodbye! Eat tasty, Stay healthy.")
         break
 
     if not user_input:
-        print("Please enter something so I can guide you.")
+        print("Please enter something so we can cook.")
         continue
 
     messages.append({"role": "user", "content": user_input})
@@ -52,6 +53,6 @@ while True:
         assistant_message = response.choices[0].message.content
         messages.append({"role": "assistant", "content": assistant_message})
 
-        print(f"\nAssistant: {assistant_message}\n")
+        print(f"\nChef: {assistant_message}\n")
     except Exception as e:
         print(f"Something went wrong: {e}")
