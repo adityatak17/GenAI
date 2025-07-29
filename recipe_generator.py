@@ -49,11 +49,11 @@ while True:
             max_tokens=200,
             store=False,
         )
-
-        assistant_message = response.choices[0].message.content
-        messages.append({"role": "assistant", "content": assistant_message})
-
-        print(f"\nChef: {assistant_message}\n")
     except Exception as e:
         print(f"Something went wrong: {e}")
         break
+
+    assistant_message = response.choices[0].message.content
+    messages.append({"role": "assistant", "content": assistant_message})
+
+    print(f"\nChef: {assistant_message}\n")
