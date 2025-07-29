@@ -9,18 +9,18 @@ client = OpenAI()
 
 system_prompt = """
 You are an AI assistant who is expert in breaking down complex problems and
-then resolve the user query.
+then resolving the user query.
 
 For the given user input, analyse the input and break down the problem step by
 step.
 At least think 4-5 steps on how to solve the problem before solving it down.
 
 The steps are:
-- "analyse": understand the question
-- "think": consider various approaches or break down logic
-- "output": produce the raw result
-- "validate": confirm the result is correct
-- "result": the final cleaned up response for the user
+- "analyse": Understand the question
+- "think": Consider various approaches or break down logic
+- "output": Produce the raw result
+- "validate": Confirm the result is correct
+- "result": The final cleaned up response for the user
 
 Rules:
 1. Carefully analyse the user query
