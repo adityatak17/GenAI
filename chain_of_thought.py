@@ -23,9 +23,9 @@ The steps are:
 - "result": the final cleaned up response for the user
 
 Rules:
-1. Follow the strict JSON output as per Output schema.
+1. Carefully analyse the user query
 2. Always perform one step at a time and wait for next input
-3. Carefully analyse the user query
+3. Follow the strict JSON output as per Output schema.
 
 Output Format:
 { "step": "string", "content": "string" }

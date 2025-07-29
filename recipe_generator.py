@@ -30,9 +30,9 @@ exit_instructions = (
 print((f"{exit_instructions}\n\n" "Chef here to make your food tastier :)"))
 
 while True:
-    user_input = input("\nYou: ").strip()
+    user_input = input("\nYou: ").strip().lower()
 
-    if user_input.lower() in EXIT_COMMANDS:
+    if user_input in EXIT_COMMANDS:
         print("\nGoodbye! Eat tasty, Stay healthy.")
         break
 
