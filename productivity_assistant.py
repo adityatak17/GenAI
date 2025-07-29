@@ -55,3 +55,4 @@ while True:
         print(f"\nAssistant: {assistant_message}\n")
     except Exception as e:
         print(f"Something went wrong: {e}")
+        break
