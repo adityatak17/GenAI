@@ -56,6 +56,7 @@ Rules:
 - Always perform ONE step at a time and wait for the next response before
 continuing.
 - Be precise and logical in your planning.
+- Always include the "content" field in every step, even for "call_tool" step.
 
 Output JSON Format:
 {{
@@ -115,8 +116,7 @@ while step != "result":
         break
 
     if step == "call_tool":
-        if content:
-            print_step_and_content(step, content)
+        print_step_and_content(step, content)
 
         tool_name = parsed_response.get("tool")
         tool_input = parsed_response.get("input")
