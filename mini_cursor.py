@@ -9,13 +9,23 @@ load_dotenv()
 client = OpenAI()
 
 
-def run_command(command):
+def run_command(command: str) -> str:
     """Execute a shell command and return its output or error."""
     try:
         result = subprocess.run(
-            command, shell=True, check=True, text=True, capture_output=True
+            command,
+            shell=True,
+            check=True,
+            text=True,
+            capture_output=True,
+            timeout=120,
         )
-        return result.stdout.strip()
+        output = result.stdout.strip()
+        if not output:
+            return f"Command {command} executed successfully"
+        return output
+    except subprocess.TimeoutExpired:
+        return "Command timed out."
     except subprocess.CalledProcessError as e:
         return (
             f"Command failed with exit code {e.returncode}: {e.stderr.strip()}"
@@ -23,74 +33,112 @@ def run_command(command):
 
 
 def print_step_and_content(step: str, content: str) -> None:
-    """Print a formatted message showing the step name and its corresponding
-    content."""
+    """Display formatted output for a step."""
     print(f"\n{step.title()} Step: {content}")
+
+
+def get_user_input(prompt: str) -> str:
+    """Prompt the user for input and return their response in lowercase."""
+    return input(f"\n{prompt}: ").strip().lower()
+
+
+def process_auto_confirmation() -> bool:
+    """Check if the user auto-confirmed all the requests."""
+    user_input = get_user_input(
+        "Enter Yes/Y to continue, All/A to confirm all, anything else to abort"
+    )
+    if user_input in ("a", "all"):
+        return True
+    elif user_input in ("y", "yes"):
+        return False
+    else:
+        print("Aborting on user request.")
+        exit(0)
 
 
 available_tools = {
     "run_command": {
         "fn": run_command,
         "description": (
-            "Takes a shell command from the user, runs it, and returns the "
-            "result."
+            "Executes a shell command and returns the result or error."
         ),
     },
 }
 
+auto_confirm = False
 
 system_prompt = f"""
 You are a helpful AI assistant designed to solve user queries through planning
-and tool execution. You follow structured steps to evaluate, plan, validate,
-and execute solutions involving commands and file operations.
-
-You never get stuck in loops. If the command output is empty but work seems
-done, you present results gracefully and finish.
+and tool execution. Your expertise includes running system commands, file
+operations, troubleshooting, and building fully functional applications.
 
 You do not engage in general discussions. Your focus is strictly on:
 - Running system commands
-- Editing or analyzing files
-- Performing CRUD operations
+- Creating, editing, deleting, analyzing, or summarizing files
 - Troubleshooting errors
-- Summarizing file contents
+- Creating fully functional apps with working code
 
-You **must always** ask permission before executing commands, unless the user
-has already confirmed all.
+You never get stuck in loops. If the command output is empty but work seems
+done, you present results gracefully and finish.
+If you encounter any errors, try to resolve them instead of closing the
+program.
+You remember what you are doing, and what you have done, you do not
+create duplicate result for the same query.
 
-If the user presents an error, you must analyze it independently, reason
+If the user presents an error, you analyse it independently, reason
 through possible solutions, and prepare validated changes. Present your
 reasoning to the user. If the user approves, apply the solution; otherwise,
 refine your approach and try again.
 
-**Important Behaviors:**
-- Always ask for the user's permission before running any command.
-- Clearly explain the **impact** of each command or change.
-- If a command is potentially dangerous, warn the user. However, proceed if
-the user confirms.
-- Do not get stuck in a loop and try to end the program gracefully
+Important Behaviors:
+- Always ask permission before executing commands, unless prior confirmation
+is given.
+- Clearly explain the impact of each command or change.
+- Warn the user if a command is risky, but proceed if they approve.
+- If command output is empty but the task appears complete, present results
+gracefully and conclude.
+- If errors occur, analyse and attempt to fix them, do not exit prematurely.
+- Never repeat or create duplicate files or steps. Understand the user's intent
+and provide a complete solution.
+- If user input is unclear, incomplete or missing, ask again even if you just
+asked because clarity is more important than step order.
+- Do not run duplicate commands and avoid redundancy.
+- Only finish when the query has been fully satisfied and validated.
+- Do not get stuck in a loop, always try to end the program gracefully.
+- Only use available tools, do not assume tools and request them.
 
-**Output Guidelines:**
-- Always include the `"content"` field in **every step**, even for
-`"call_tool"` steps.
+When an error is presented:
+- analyse it independently and reason through possible solutions.
+- Present your reasoning and suggested fix to the user.
+- Only apply changes if the user approves or refine and retry based on
+user feedback.
+
+Output Guidelines:
+- Always include the "content" field in every step, even for "call_tool" steps.
 - Follow the exact output JSON schema shown below.
-- Perform **only one step per output**, then wait for the next response before
+- Perform "only one step per output", then wait for the next response before
 continuing.
 - Be logical, precise, and transparent in each step.
+- You are allowed to repeat the "input" step if needed.
 
-**Workflow Steps:**
-- `"analyse"`: Understand the user's query.
-- `"think"`: Break down the problem and explore possible solutions.
-- `"input"`: Ask for user input if required.
-- `"plan"`: Identify user intent, required tools, and the steps to take.
-- `"precaution"`: Assess risks and validate the safety of all actions.
-- `"confirmation"`: Request user approval before executing any commands.
-- `"call_tool"`: Specify the tool to invoke and the input to provide.
-- `"observe"`: Capture and analyze tool output.
-- `"validate"`: Confirm that the result meets the expected outcome.
-- `"result"`: Present the final, user-friendly solution.
+Workflow Steps:
+- "analyse": Understand the user's query or issue in depth.
+- "think": Break down the problem and explore possible solutions.
+- "input": Ask for any missing user input or clarifications.
+- "plan": Identify user intent, required tools, and the steps to take.
+- "precaution": Assess risks and validate the safety of all actions.
+- "confirmation": Request user approval before executing any commands.
+- "call_tool": Specify the available tool to invoke and the input to provide.
+- "observe": Capture and analyse tool output.
+- "validate": Confirm that the result meets the expected outcome.
+- "result": Present the final, user-friendly solution concisely.
+- "user_feedback": Ask the user if the result satisfies their needs or if they
+want modifications. If modifications are requested, return to the "analyse"
+step and repeat the workflow.
 
-Workflow: analyse -> think -> input (if needed) -> plan -> precaution ->
-confirmation -> call_tool -> observe -> validate -> result
+Workflow: analyse -> think -> input? -> plan -> precaution -> confirmation ->
+call_tool -> observe -> validate -> result -> user_feedback -> [if user asks
+for changes and provides new input → analyse -> think → ... repeat]
 
 **Valid Output JSON Format:**
 {{
@@ -116,10 +164,11 @@ valid_steps = {
     "observe",
     "validate",
     "result",
+    "user_feedback",
 }
 
 
-user_query = input("\nYou: ").strip().lower()
+user_query = get_user_input("You")
 messages = [
     {"role": "system", "content": system_prompt},
     {"role": "user", "content": user_query},
@@ -127,7 +176,7 @@ messages = [
 
 step = "start"
 
-while step != "result":
+while step != "user_feedback":
     try:
         response = client.chat.completions.create(
             model="gpt-4o",
@@ -143,11 +192,11 @@ while step != "result":
     try:
         parsed_response = json.loads(response.choices[0].message.content)
     except json.JSONDecodeError:
-        print("\nError decoding JSON from model response.")
-        # To debug why exactly the code failed
-        import pdb
-
-        pdb.set_trace()
+        print(
+            "\nError decoding JSON from model response.",
+            response.choices[0].message.content,
+        )
+        print("\nMessages Array", messages)
         break
 
     step = parsed_response.get("step")
@@ -160,8 +209,7 @@ while step != "result":
         break
 
     if step == "input":
-        user_input = input("\nYou: ").strip().lower()
-
+        user_input = get_user_input("You")
         messages.append(
             {
                 "role": "user",
@@ -173,28 +221,18 @@ while step != "result":
         continue
 
     if step == "confirmation":
-        user_confirmation = (
-            input(
-                "\nEnter Yes or Y to continue, anything else to "
-                "close the program: "
-            )
-            .strip()
-            .lower()
+        if not auto_confirm:
+            auto_confirm = process_auto_confirmation()
+        confirmation_message = (
+            "Auto-confirm enabled." if auto_confirm else "Confirmed by user."
         )
-
-        if user_confirmation not in ["y", "yes"]:
-            print("Closing the Program")
-            break
-
-        confirmation_message = {
-            "step": step,
-            "content": (
-                "The User approved the operation and wants to move " "forward."
-            ),
-        }
-
         messages.append(
-            {"role": "user", "content": json.dumps(confirmation_message)}
+            {
+                "role": "user",
+                "content": json.dumps(
+                    {"step": step, "content": confirmation_message}
+                ),
+            }
         )
         continue
 
@@ -202,23 +240,28 @@ while step != "result":
         tool_name = parsed_response.get("tool")
         tool_input = parsed_response.get("input")
 
-        if not tool_name or tool_name not in available_tools:
-            print(f"\nTool not available: {tool_name}")
+        if tool_name not in available_tools:
+            print(f"\nTool not found: {tool_name}")
             break
 
         tool_fn = available_tools[tool_name]["fn"]
+        messages.append(
+            {
+                "role": "assistant",
+                "content": json.dumps(
+                    {
+                        "step": "call_tool",
+                        "content": f"{tool_fn}({tool_input})",
+                    }
+                ),
+            }
+        )
 
         if tool_input:
             tool_output = tool_fn(tool_input)
-
-            if not tool_output:
-                tool_output = (
-                    "The command completed with no output. Checking if it is "
-                    "done so we can move to the next step."
-                )
         else:
             tool_output = (
-                "No input command found. Checking if it is already done so we "
+                "No input command found. Check if it is already done so we "
                 "can move to the next step."
             )
 
@@ -233,6 +276,31 @@ while step != "result":
             }
         )
         continue
+
+    if step == "user_feedback":
+        user_input = get_user_input(
+            "If you want to make modifications press Y or Yes, anything else "
+            "to abort"
+        )
+        if user_input in ("y", "yes"):
+            messages.append(
+                {
+                    "role": "user",
+                    "content": json.dumps(
+                        {
+                            "step": "user_feedback",
+                            "content": (
+                                "User wants to make modifications to "
+                                "the changes you suggested."
+                            ),
+                        }
+                    ),
+                }
+            )
+            step = "analyse"
+            continue
+        print("\nUser is satisfied with the changes, closing the program.")
+        break
 
     messages.append(
         {"role": "assistant", "content": json.dumps(parsed_response)}
